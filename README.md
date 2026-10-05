@@ -3,6 +3,8 @@
 Three doors and a prize behind one. You pick, the host opens a door that is not
 yours, and you decide whether to switch.
 
+![Three doors in a grey wall, all swung open to the left, with a pale blue tab on the lintel over the middle one. A glowing ball sits in the middle alcove and the other two are dark and empty. Two bars across the top left: a short red one marked stayed at 30 percent of 500, and a longer green one marked switched at 67 percent of 501](media/screenshot.png)
+
 ```
 cargo run --release
 ```
