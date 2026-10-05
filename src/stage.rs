@@ -35,8 +35,6 @@ pub const AJAR: f32 = 0.09;
 pub enum Said {
     Pick,
     Offered,
-    /// He opened nothing, because the pick was not the prize.
-    Declined,
     /// He opened the prize. The round did not count and another is dealt.
     GaveItAway,
     Won,
@@ -51,6 +49,11 @@ pub enum Phase {
     Offered,
     /// Everything is open and the answer is on the floor.
     Shown,
+    /// The careless host opened the prize. What he opened stands open, your own
+    /// door does not, and the round is not counted. It is a phase of its own
+    /// because throwing the round away between one keypress and the next, with
+    /// nothing drawn, read as the game resetting itself.
+    Gave,
 }
 
 pub struct Stage {
@@ -114,13 +117,14 @@ impl Stage {
     /// How far open a door is, from 0 to 1.
     pub fn open_by(&self, door: usize) -> f32 {
         let shown = self.phase == Phase::Shown;
+        let over = shown || self.phase == Phase::Gave;
         let open = shown || self.opened.contains(&door);
 
         if !open {
             // the one the cursor is on stands ajar. A colour and a light on the
             // floor are both easy to lose in a long row; a door off its frame
             // is not, and it needs no reading.
-            return if door == self.on && !shown { AJAR } else { 0.0 };
+            return if door == self.on && !over { AJAR } else { 0.0 };
         }
         (self.since / doors::SWING_SECONDS).clamp(0.0, 1.0)
     }
@@ -142,7 +146,7 @@ impl Stage {
                 pair.sort_unstable();
                 pair
             }
-            Phase::Shown => Vec::new(),
+            Phase::Shown | Phase::Gave => Vec::new(),
         }
     }
 
@@ -173,20 +177,17 @@ impl Stage {
                     self.picked,
                     &mut self.rng,
                 ) {
-                    // he gave it away, so nobody played and the round is dealt
-                    // again. The count of these is the point.
-                    Opened::Void => {
+                    // he gave it away, so nobody played. It is shown before it
+                    // is thrown away, and the count of these is the point.
+                    Opened::Gave(opened) => {
                         self.tally.record(self.habit, Outcome::Void);
-                        self.deal();
-                        // after the deal, which resets it
+                        self.opened = opened;
+                        self.outcome = Some(Outcome::Void);
+                        self.phase = Phase::Gave;
                         self.said = Said::GaveItAway;
+                        self.since = 0.0;
                     }
                     // he offered nothing, so the pick stands and everything opens
-                    Opened::NoOffer => {
-                        self.habit = Habit::Stay;
-                        self.settle(self.picked);
-                        self.said = Said::Declined;
-                    }
                     Opened::Doors(opened) => {
                         self.opened = opened;
                         self.phase = Phase::Offered;
@@ -203,7 +204,7 @@ impl Stage {
                 };
                 self.settle(self.on);
             }
-            Phase::Shown => self.deal(),
+            Phase::Shown | Phase::Gave => self.deal(),
         }
     }
 
@@ -348,15 +349,26 @@ mod tests {
     }
 
     #[test]
-    fn a_careless_host_deals_again_when_he_gives_it_away() {
+    fn a_careless_giveaway_is_shown_before_it_is_thrown_away() {
         let mut stage = stage();
         stage.set_host(Host::Careless);
 
         for _ in 0..200 {
             stage.take();
-            if stage.phase == Phase::Picking {
-                // he gave it away and dealt again, and the round was counted
+            if stage.phase == Phase::Gave {
+                // the prize he opened stands open and the round is counted
+                assert!(stage.opened.contains(&stage.prize));
                 assert!(stage.tally.thrown_away > 0);
+                stage.tick(doors::SWING_SECONDS);
+                assert_eq!(stage.open_by(stage.prize), 1.0, "he hid what he gave");
+
+                // and the player's own door stays shut, because the round did
+                // not happen
+                assert_eq!(stage.open_by(stage.picked), 0.0);
+
+                // only then is another dealt
+                stage.take();
+                assert_eq!(stage.phase, Phase::Picking);
                 assert!(stage.opened.is_empty());
                 return;
             }
@@ -367,21 +379,35 @@ mod tests {
     }
 
     #[test]
-    fn a_mean_host_ends_the_round_where_it_started() {
+    fn a_mean_host_still_offers_a_door_to_move_to() {
         let mut stage = stage();
         stage.set_host(Host::Mean);
 
         for _ in 0..200 {
             stage.take();
-            if stage.phase == Phase::Shown {
-                assert_eq!(stage.outcome, Some(Outcome::Lost));
-                assert_eq!(stage.habit, Habit::Stay);
+            // whatever he did, the round is a round: he opened something and
+            // there is a decision to make
+            assert_eq!(stage.phase, Phase::Offered, "he ended it on one press");
+            assert_eq!(stage.reachable().len(), 2);
+            stage.deal();
+        }
+    }
+
+    #[test]
+    fn a_mean_host_shows_the_prize_when_the_pick_was_wrong() {
+        let mut stage = stage();
+        stage.set_host(Host::Mean);
+
+        for _ in 0..200 {
+            stage.take();
+            if stage.picked != stage.prize {
+                assert!(stage.opened.contains(&stage.prize), "he kept it back");
                 return;
             }
             stage.deal();
         }
 
-        panic!("he offered every time in two hundred rounds");
+        panic!("two hundred rounds and every pick was right");
     }
 
     #[test]
@@ -453,25 +479,6 @@ mod tests {
     }
 
     #[test]
-    fn the_mean_host_says_he_declined_rather_than_going_quiet() {
-        let mut stage = stage();
-        stage.set_host(Host::Mean);
-
-        for _ in 0..200 {
-            stage.take();
-            if stage.said == Said::Declined {
-                // one press and every door open is the game looking broken,
-                // so the refusal has to be said
-                assert_eq!(stage.phase, Phase::Shown);
-                return;
-            }
-            stage.deal();
-        }
-
-        panic!("he offered every time in two hundred rounds");
-    }
-
-    #[test]
     fn the_careless_host_says_when_he_gave_it_away() {
         let mut stage = stage();
         stage.set_host(Host::Careless);
@@ -479,7 +486,7 @@ mod tests {
         for _ in 0..200 {
             stage.take();
             if stage.said == Said::GaveItAway {
-                assert_eq!(stage.phase, Phase::Picking, "it should deal another");
+                assert_eq!(stage.phase, Phase::Gave, "it vanished without showing");
                 assert!(stage.tally.thrown_away > 0);
                 return;
             }

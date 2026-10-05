@@ -113,10 +113,7 @@ impl Monty {
             Said::Offered => {
                 "The blue tab is your door. Move the light across to switch, or take it again to stay."
             }
-            Said::Declined => {
-                "He opened nothing. He only offers when you were already right. Enter deals another."
-            }
-            Said::GaveItAway => "He opened the prize. That round does not count. Pick a door.",
+            Said::GaveItAway => "He opened the prize. That round does not count. Enter deals another.",
             Said::Won => "Yours. Enter deals another.",
             Said::Lost => "Not yours. Enter deals another.",
         };

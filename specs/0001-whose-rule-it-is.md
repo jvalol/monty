@@ -22,17 +22,30 @@ everything opens.
 
 ### The three hosts
 
-They differ in one thing only, which is how the host picks what to open.
+They differ in one thing only, which is how the host picks what to open. Every
+one of them opens doors and offers the switch, so a round is the same shape
+whoever is on and the rule is the only variable.
 
 - **Knowing.** He knows where the prize is and never opens it. Switching wins
   `(doors - 1) / doors`, which is two thirds of the time on three doors.
 - **Careless.** He opens at random among the doors that are not yours. When the
-  prize turns up the round is void and played again. Switching wins half the
+  prize turns up the round is void and another is dealt. Switching wins half the
   time. From where you sit a round that was not void looks exactly like a round
   with the knowing host, which is the whole trouble.
-- **Mean.** He offers the switch only when your first pick was already the
-  prize. Otherwise the doors open where they are. Switching wins nothing, and
-  staying wins `1 / doors`.
+
+  A void round is shown before it is thrown away: what he opened stands open,
+  the prize among it, and your own door stays shut because the round did not
+  happen. It used to be discarded between one keypress and the next with nothing
+  drawn, and that read as the game resetting itself rather than as the host
+  giving the game away.
+- **Mean.** He opens the prize the moment you pick wrong, and leaves you an
+  empty door to move to. Switching wins nothing, and staying wins `1 / doors`.
+
+  He used to offer nothing at all on a losing pick, which is the same arithmetic
+  and a worse round: two in three had no decision in them and ended the instant
+  you pressed a key. Opening the prize costs nothing, since you had already lost
+  when you picked, and it makes his round the same shape as the other two. You
+  simply get to watch it happen.
 
 ### The tally
 
@@ -95,8 +108,11 @@ a light behind its door and the rest are dark and empty.
 - And ninety two percent on twelve. — `round::tests::more_doors_make_switching_surer`
 - Staying against him wins a third. — `round::tests::staying_on_a_knowing_host_wins_a_third`
 - The careless host voids the rounds where he opens the prize. — `host::tests::the_careless_host_voids_what_he_gives_away`
+- And it is shown before it is thrown away. — `stage::tests::a_careless_giveaway_is_shown_before_it_is_thrown_away`
 - Switching against him wins half. — `round::tests::switching_on_a_careless_host_is_a_coin`
-- The mean host offers nothing unless you were right. — `host::tests::the_mean_host_only_offers_when_you_were_right`
+- The mean host shows you the prize the moment you are wrong. — `host::tests::the_mean_host_shows_you_the_prize_the_moment_you_are_wrong`
+- And still leaves a door to move to. — `host::tests::the_mean_host_always_leaves_a_door_to_move_to`
+- So his round is the same shape as anyone's. — `stage::tests::a_mean_host_still_offers_a_door_to_move_to`
 - Switching against him never wins. — `round::tests::switching_on_a_mean_host_never_wins`
 - And staying wins one door in three. — `round::tests::staying_on_a_mean_host_wins_one_in_three`
 - A batch plays the same rounds the hand does. — `round::tests::a_batch_is_the_same_round_repeated`

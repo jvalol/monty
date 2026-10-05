@@ -14,7 +14,7 @@ pub enum Host {
     Knowing,
     /// He opens at random and sometimes gives it away.
     Careless,
-    /// He opens only when your first pick was already right.
+    /// He opens the prize the moment you pick wrong.
     Mean,
 }
 
@@ -27,10 +27,10 @@ impl Host {
 pub enum Opened {
     /// The doors he opened. One door is left closed beside your own.
     Doors(Vec<usize>),
-    /// He opened the prize. The round is thrown away and played again.
-    Void,
-    /// He opened nothing and offered nothing. Your first pick stands.
-    NoOffer,
+    /// He opened the prize, and these are the doors he opened. The round is
+    /// thrown away, but it is shown first: a round that vanishes between one
+    /// keypress and the next reads as the game resetting itself.
+    Gave(Vec<usize>),
 }
 
 /// The doors, numbered from zero.
@@ -69,16 +69,27 @@ pub fn opens(host: Host, doors: usize, prize: usize, picked: usize, rng: &mut im
                 .collect();
 
             if opening.contains(&prize) {
-                Opened::Void
+                Opened::Gave(opening)
             } else {
                 Opened::Doors(opening)
             }
         }
+        // the same shape of round as the other two: a door opens and you
+        // decide. He used to open nothing at all when you picked wrong, which
+        // was two rounds in three with no decision in them and read as the
+        // game ending on one keypress.
         Host::Mean => {
             if picked == prize {
                 Opened::Doors(all_but(doors, picked, keeper(doors, prize, picked, rng)))
             } else {
-                Opened::NoOffer
+                // he opens the prize and leaves you an empty one to move to, so
+                // you can see you have lost before you choose
+                let empty: Vec<usize> = (0..doors)
+                    .filter(|door| *door != picked && *door != prize)
+                    .collect();
+                let keeper = *empty.choose(rng).expect("a losing pick leaves two others");
+
+                Opened::Doors(all_but(doors, picked, keeper))
             }
         }
     }
@@ -176,9 +187,11 @@ mod tests {
             let picked = rng.gen_range(0..3);
 
             match opens(Host::Careless, 3, prize, picked, &mut rng) {
-                Opened::Void => voids += 1,
+                Opened::Gave(opened) => {
+                    assert!(opened.contains(&prize), "he voided without giving it away");
+                    voids += 1;
+                }
                 Opened::Doors(opened) => assert!(!opened.contains(&prize)),
-                Opened::NoOffer => panic!("the careless host always opens something"),
             }
             rounds += 1;
         }
@@ -190,17 +203,36 @@ mod tests {
     }
 
     #[test]
-    fn the_mean_host_only_offers_when_you_were_right() {
+    fn the_mean_host_shows_you_the_prize_the_moment_you_are_wrong() {
         for seed in 0..500 {
             let mut rng = rng(seed);
             let prize = rng.gen_range(0..3);
             let picked = rng.gen_range(0..3);
 
-            let what = opens(Host::Mean, 3, prize, picked, &mut rng);
+            let Opened::Doors(opened) = opens(Host::Mean, 3, prize, picked, &mut rng) else {
+                panic!("he always opens something now");
+            };
+
             if picked == prize {
-                assert!(matches!(what, Opened::Doors(_)), "he owed you a door");
+                assert!(!opened.contains(&prize), "he opened the one you are on");
             } else {
-                assert_eq!(what, Opened::NoOffer, "he offered on a losing pick");
+                assert!(opened.contains(&prize), "he kept it back on a losing pick");
+            }
+        }
+    }
+
+    #[test]
+    fn the_mean_host_always_leaves_a_door_to_move_to() {
+        // every host offers now, so a round is the same shape whoever is on
+        for seed in 0..300 {
+            for host in Host::ALL {
+                let mut rng = rng(seed);
+                let prize = rng.gen_range(0..3);
+                let picked = rng.gen_range(0..3);
+
+                if let Opened::Doors(opened) = opens(host, 3, prize, picked, &mut rng) {
+                    assert!(left_closed(3, picked, &opened).is_some(), "{:?}", host);
+                }
             }
         }
     }

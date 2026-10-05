@@ -39,10 +39,7 @@ pub fn play(host: Host, doors: usize, habit: Habit, rng: &mut impl Rng) -> Outco
     let picked = rng.gen_range(0..doors);
 
     let landed = match host::opens(host, doors, prize, picked, rng) {
-        Opened::Void => return Outcome::Void,
-        // he offered nothing, so the pick stands however the player meant to
-        // play it. This is the mean host's whole trick.
-        Opened::NoOffer => picked,
+        Opened::Gave(_) => return Outcome::Void,
         Opened::Doors(opened) => match habit {
             Habit::Stay => picked,
             Habit::Switch => {
