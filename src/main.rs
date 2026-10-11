@@ -108,14 +108,20 @@ impl Monty {
         // what the host just did, said every time. A round against the mean
         // host is otherwise one keypress and every door open, which reads as
         // the game breaking rather than as him refusing.
+        // verb first, every clause that asks for something. These named the
+        // key and left you to work out what to do with it, which reads as a
+        // description of the machine rather than as an instruction. The state
+        // each line opens with stays as it is: "Yours" is not an instruction.
         let saying = match self.stage.said {
-            Said::Pick => "Arrows move the light. Enter takes the door it is on.",
+            Said::Pick => "Press the arrows to move the light. Press enter to take the door it is on.",
             Said::Offered => {
                 "The blue tab is your door. Move the light across to switch, or take it again to stay."
             }
-            Said::GaveItAway => "He opened the prize. That round does not count. Enter deals another.",
-            Said::Won => "Yours. Enter deals another.",
-            Said::Lost => "Not yours. Enter deals another.",
+            Said::GaveItAway => {
+                "He opened the prize. That round does not count. Press enter to deal another."
+            }
+            Said::Won => "Yours. Press enter to deal another.",
+            Said::Lost => "Not yours. Press enter to deal another.",
         };
 
         vec![
