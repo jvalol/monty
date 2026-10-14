@@ -1,6 +1,6 @@
 # 0001 Whose rule it is
 
-**Status:** draft
+**Status:** implemented
 **Date:** 2026-10-04
 
 ## Goal
@@ -115,7 +115,7 @@ a light behind its door and the rest are dark and empty.
 - So his round is the same shape as anyone's. — `stage::tests::a_mean_host_still_offers_a_door_to_move_to`
 - Switching against him never wins. — `round::tests::switching_on_a_mean_host_never_wins`
 - And staying wins one door in three. — `round::tests::staying_on_a_mean_host_wins_one_in_three`
-- A batch plays the same rounds the hand does. — `round::tests::a_batch_is_the_same_round_repeated`
+- A batch plays the same rounds the hand does. — `tally::tests::a_batch_says_what_the_hand_says`
 - And splits itself evenly between staying and switching. — `tally::tests::a_batch_fills_both_bars`
 - The tally counts what happened and nothing else. — `tally::tests::the_tally_adds_up`
 - Thrown away rounds are counted, not dropped. — `tally::tests::a_void_round_is_counted_as_one`
