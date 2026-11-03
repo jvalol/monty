@@ -73,14 +73,17 @@ struct Monty {
 }
 
 impl Monty {
-    fn new() -> Self {
+    /// `staged` rather than a call to `staged()`, so that a picture test
+    /// can ask for the photographed state without putting `--screenshot`
+    /// in its own arguments. `main` passes what the arguments say.
+    fn new(staged: bool) -> Self {
         Self {
             stage: Stage::new(0x4D4F4E54),
             panel: None,
             ball: None,
             window: vec2(900.0, 600.0),
             held: [false; 5],
-            staged: staged(),
+            staged,
             posed: false,
             quitting: false,
         }
@@ -169,7 +172,7 @@ fn named(host: Host) -> &'static str {
 
 impl Default for Monty {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
 
@@ -423,13 +426,52 @@ impl Game for Monty {
 }
 
 fn main() {
-    start("monty", Box::new(Monty::new()));
+    start("monty", Box::new(Monty::new(staged())));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use blitzkit::keyboard::KeyboardInput;
+
+    /// How big the picture is: the engine's own size, said once there and
+    /// read here, per its spec 0062.
+    const WIDE: u32 = blitzkit::picture::SIZE.0;
+    const TALL: u32 = blitzkit::picture::SIZE.1;
+
+    /// A round carried through, held against a picture of it. Spec 0002.
+    ///
+    /// **The staging was already here**, and so was the determinism:
+    /// `Stage` is seeded with a fixed number rather than from entropy, so
+    /// unlike the other games there was nothing to pin. `--screenshot`
+    /// runs a batch to put bars on the board and plays one round all the
+    /// way through, because the prize behind an open door is the thing a
+    /// still picture can show and an offer is not.
+    ///
+    /// One `update` and no more. The pose runs inside the first one and
+    /// sets `posed`, and the `dt` of nought leaves the doors where it
+    /// swung them.
+    #[test]
+    fn a_round_carried_through_looks_right() {
+        let reference = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/pictures/carried-through.png");
+
+        blitzkit::picture::drawn_looks_right(&reference, (WIDE, TALL), |renderer| {
+            let mut game = Monty::new(true);
+            let mut geometry = Geometry::new();
+            let mut text = TextRenderer::new();
+            let sound = SoundSystem::new();
+            let mut scene = Scene::new();
+            let mut camera = Camera::new();
+
+            game.load(renderer);
+            game.initialize(&mut geometry, &mut text, &sound, (WIDE as f32, TALL as f32));
+            game.update(0.0, &mut geometry, &mut text, &sound);
+            game.draw(&mut scene, &mut camera);
+
+            (scene, camera)
+        });
+    }
 
     fn press(game: &mut Monty, key: KeyboardKey) {
         game.process_keyboard(KeyboardInput {
@@ -443,7 +485,7 @@ mod tests {
     fn escape_quits() {
         // the readout promises it does, and for a while it did not: the key was
         // never handled and is_quitting was a hard coded false
-        let mut game = Monty::new();
+        let mut game = Monty::new(false);
         assert!(!game.is_quitting());
 
         press(&mut game, KeyboardKey::Escape);
@@ -453,7 +495,7 @@ mod tests {
 
     #[test]
     fn nothing_else_quits() {
-        let mut game = Monty::new();
+        let mut game = Monty::new(false);
 
         for key in [
             KeyboardKey::Left,
