@@ -10,7 +10,3 @@ not a priority, and it never changes once a spec exists.
 | --- | --- |
 | [0001](0001-whose-rule-it-is.md) | Three hosts, the doors they open, and the tally that tells them apart |
 | [0002](0002-a-picture-of-a-round-carried-through.md) | The staged round held against a picture of it, through the engine's harness |
-
----
-
-I asked AI to draft this for me. I've edited it. Any surviving AI smells are my oversight.
